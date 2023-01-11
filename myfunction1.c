@@ -2,142 +2,22 @@
 #include <stdbool.h>
 #include "myfunction1.h"
 #include "showBMP.h"
-/*
- * initialize_pixel_sum - Initializes all fields of sum to 0
- */
-void initialize_pixel_sum(pixel_sum *sum)
-{
-	sum->red = sum->green = sum->blue = 0;
-	// sum->num = 0;
-	return;
-}
-
-/*
- * assign_sum_to_pixel - Truncates pixel's new value to match the range [0,255]
- */
-static void assign_sum_to_pixel(pixel *current_pixel, pixel_sum sum, int kernelScale)
-{
-
-	// divide by kernel's weight
-	sum.red = sum.red / kernelScale;
-	sum.green = sum.green / kernelScale;
-	sum.blue = sum.blue / kernelScale;
-
-	// truncate each pixel's color values to match the range [0,255]
-	current_pixel->red = (unsigned char)(min(max(sum.red, 0), 255));
-	current_pixel->green = (unsigned char)(min(max(sum.green, 0), 255));
-	current_pixel->blue = (unsigned char)(min(max(sum.blue, 0), 255));
-	return;
-}
-
-/*
- * sum_pixels_by_weight - Sums pixel values, scaled by given weight
- */
-static void sum_pixels_by_weight(pixel_sum *sum, pixel p, int weight)
-{
-	sum->red += ((int)p.red) * weight;
-	sum->green += ((int)p.green) * weight;
-	sum->blue += ((int)p.blue) * weight;
-	// sum->num++;
-	return;
-}
-/*
- * Apply the kernel over each pixel.
- * Ignore pixels where the kernel exceeds bounds. These are pixels with row index smaller than kernelSize/2 and/or
- * column index smaller than kernelSize/2
- */
-void smooth(int dim, pixel *src, pixel *dst, int kernelSize, int kernel[kernelSize][kernelSize], int kernelScale, bool filter)
-{
-
-	int i, j;
-	int sumR = 0;
-	int sumG = 0;
-	int sumB = 0;
-
-	for (i = 1; i < dim - 1; i++)
-	{
-		for (j = 1; j < dim - 1; j++)
-		{
-			sumR = 0;
-			sumG = 0;
-			sumB = 0;
-			int ii, jj;
-			// pixel_sum sum;
-			int min_loc;
-			int max_loc;
-			int min_intensity = 766; // arbitrary value that is higher than maximum possible intensity, which is 255*3=765
-			int max_intensity = -1;	 // arbitrary value that is lower than minimum possible intensity, which is 0
-			int sumColor;
-			pixel loop_pixel;
-			int pos = (i - 1) * dim + j - 1;
-			for (ii = 0; ii < 3; ii++)
-			{
-				for (jj = 0; jj < 3; jj++)
-				{
-					loop_pixel = src[pos];
-					// apply kernel on pixel at [ii,jj]
-					sumR += ((int)loop_pixel.red) * kernel[ii][jj];
-					sumG += ((int)loop_pixel.green) * kernel[ii][jj];
-					sumB += ((int)loop_pixel.blue) * kernel[ii][jj];
-
-					if(filter){
-						sumColor = (int)loop_pixel.red + (int)loop_pixel.green + (int)loop_pixel.blue;
-						if (sumColor <= min_intensity)
-						{
-							min_intensity = sumColor;
-							min_loc = pos;
-						}
-						if (sumColor > max_intensity)
-						{
-							max_intensity = sumColor;
-							max_loc = pos;
-						}
-					}
-
-
-					pos++;
-				}
-				pos = pos - 3 + dim;
-			}
-				if (filter)
-			{
-				// filter out min and max
-				sumR += ((int)src[min_loc].red) * -1;
-				sumG += ((int)src[min_loc].green) * -1;
-				sumB += ((int)src[min_loc].blue) * -1;
-				sumR += ((int)src[max_loc].red) * -1;
-				sumG += ((int)src[max_loc].green) * -1;
-				sumB += ((int)src[max_loc].blue) * -1;
-
-			}
-
-			// assign kernel's result to pixel at [i,j]
-			// divide by kernel's weight
-			sumR = sumR / kernelScale;
-			sumG = sumG / kernelScale;
-			sumB = sumB / kernelScale;
-
-			// truncate each pixel's color values to match the range [0,255]
-			dst[i * dim + j].red = (unsigned char)(min(max(sumR, 0), 255));
-			dst[i * dim + j].green = (unsigned char)(min(max(sumG, 0), 255));
-			dst[i * dim + j].blue = (unsigned char)(min(max(sumB, 0), 255));
-
-			// dst[i * dim + j] = current_pixel;
-		}
-	}
-}
 
 void charsToPixels(Image *charsImg, pixel *pixels)
 {
 
 	int row, col;
+	int pos = 0;
+	int tPos = 0;
 	for (row = 0; row < m; row++)
 	{
 		for (col = 0; col < n; col++)
 		{
-			pixels[row * n + col].red = image->data[3 * row * n + 3 * col];
-			pixels[row * n + col].green = image->data[3 * row * n + 3 * col + 1];
-			pixels[row * n + col].blue = image->data[3 * row * n + 3 * col + 2];
+			pixels[pos].red = image->data[tPos];
+			pixels[pos].green = image->data[tPos + 1];
+			pixels[pos].blue = image->data[tPos + 2];
+			pos++;
+			tPos = tPos + 3;
 		}
 	}
 }
@@ -146,14 +26,18 @@ void pixelsToChars(pixel *pixels, Image *charsImg)
 {
 
 	int row, col;
+	int pos = 0;
+	int tPos = 0;
 	for (row = 0; row < m; row++)
 	{
 		for (col = 0; col < n; col++)
 		{
 
-			image->data[3 * row * n + 3 * col] = pixels[row * n + col].red;
-			image->data[3 * row * n + 3 * col + 1] = pixels[row * n + col].green;
-			image->data[3 * row * n + 3 * col + 2] = pixels[row * n + col].blue;
+			image->data[tPos] = pixels[pos].red;
+			image->data[tPos + 1] = pixels[pos].green;
+			image->data[tPos + 2] = pixels[pos].blue;
+			pos++;
+			tPos = tPos + 3;
 		}
 	}
 }
@@ -162,31 +46,346 @@ void copyPixels(pixel *src, pixel *dst)
 {
 
 	int row, col;
+	int pos = 0;
 	for (row = 0; row < m; row++)
 	{
 		for (col = 0; col < n; col++)
 		{
 
-			dst[row * n + col].red = src[row * n + col].red;
-			dst[row * n + col].green = src[row * n + col].green;
-			dst[row * n + col].blue = src[row * n + col].blue;
+			dst[pos].red = src[pos].red;
+			dst[pos].green = src[pos].green;
+			dst[pos].blue = src[pos].blue;
+			pos++;
 		}
 	}
 }
 
-void doConvolution(Image *image, int kernelSize, int kernel[kernelSize][kernelSize], int kernelScale, bool filter)
+void smoothB(int dim, Image* image)
 {
+		int x = m * n * 3;
+	pixel *dst = malloc(x);
+	pixel *src = malloc(x);
+	charsToPixels(image, dst);
+	copyPixels(dst, src);
 
-	pixel *pixelsImg = malloc(m * n * sizeof(pixel));
-	pixel *backupOrg = malloc(m * n * sizeof(pixel));
+	int i, j;
+	for (i = 1; i < dim - 1; i++)
+	{
+		for (j = 1; j < dim - 1; j++)
+		{
+			int sumR = 0;
+			int sumG = 0;
+			int sumB = 0;
+			int ii, jj;
+			// pixel_sum sum;
+			pixel loop_pixel;
+			int pos = (i - 1) * dim + j - 1;
+			for (ii = 0; ii < 3; ii++)
+			{
+				for (jj = 0; jj < 3; jj++)
+				{
+					loop_pixel = src[pos];
+					// apply kernel on pixel at [ii,jj]
+					sumR += ((int)loop_pixel.red);
+					sumG += ((int)loop_pixel.green);
+					sumB += ((int)loop_pixel.blue);
 
-	charsToPixels(image, pixelsImg);
-	copyPixels(pixelsImg, backupOrg);
+					pos++;
+				}
+				pos = pos - 3 + dim;
+			}
+			pos =i * dim + j;
+			// assign kernel's result to pixel at [i,j]
+			// divide by kernel's weight
+			sumR = sumR / 9;
+			sumG = sumG / 9;
+			sumB = sumB / 9;
 
-	smooth(m, backupOrg, pixelsImg, kernelSize, kernel, kernelScale, filter);
+			// truncate each pixel's color values to match the range [0,255]
+			dst[pos].red = (unsigned char)(min(max(sumR, 0), 255));
+			dst[pos].green = (unsigned char)(min(max(sumG, 0), 255));
+			dst[pos].blue = (unsigned char)(min(max(sumB, 0), 255));
 
-	pixelsToChars(pixelsImg, image);
+			// dst[i * dim + j] = current_pixel;
+		}
+	}
+	pixelsToChars(dst, image);
+	free(dst);
+	free(src);
+}
 
-	free(pixelsImg);
-	free(backupOrg);
+void smoothS(int dim, Image* image)
+{
+	int x = m * n * 3;
+	pixel *dst = malloc(x);
+	pixel *src = malloc(x);
+	charsToPixels(image, dst);
+	copyPixels(dst, src);
+	int i, j;
+	for (i = 1; i < dim - 1; i++)
+	{
+		for (j = 1; j < dim - 1; j++)
+		{
+			int sumR = 0;
+			int sumG = 0;
+			int sumB = 0;
+			int ii, jj;
+			// pixel_sum sum;
+			pixel loop_pixel;
+			int pos = (i - 1) * dim + j - 1;
+			for (ii = 0; ii < 1; ii++)
+			{
+				for (jj = 0; jj < 3; jj++)
+				{
+					loop_pixel = src[pos];
+					// apply kernel on pixel at [ii,jj]
+					sumR += ((int)loop_pixel.red) * -1;
+					sumG += ((int)loop_pixel.green) * -1;
+					sumB += ((int)loop_pixel.blue) * -1;
+
+					pos++;
+				}
+				pos = pos - 3 + dim;
+			}
+			loop_pixel = src[pos];
+			// apply kernel on pixel at [ii,jj]
+			sumR += ((int)loop_pixel.red) * -1;
+			sumG += ((int)loop_pixel.green) * -1;
+			sumB += ((int)loop_pixel.blue) * -1;
+
+			pos++;
+			loop_pixel = src[pos];
+			// apply kernel on pixel at [ii,jj]
+			sumR += ((int)loop_pixel.red) * 9;
+			sumG += ((int)loop_pixel.green) * 9;
+			sumB += ((int)loop_pixel.blue) * 9;
+
+			pos++;
+			loop_pixel = src[pos];
+			// apply kernel on pixel at [ii,jj]
+			sumR += ((int)loop_pixel.red) * -1;
+			sumG += ((int)loop_pixel.green) * -1;
+			sumB += ((int)loop_pixel.blue) * -1;
+
+			pos = pos - 2 + dim;
+			for (ii = 2; ii < 3; ii++)
+			{
+				for (jj = 0; jj < 3; jj++)
+				{
+					loop_pixel = src[pos];
+					// apply kernel on pixel at [ii,jj]
+					sumR += ((int)loop_pixel.red) * -1;
+					sumG += ((int)loop_pixel.green) * -1;
+					sumB += ((int)loop_pixel.blue) * -1;
+
+					pos++;
+				}
+				pos = pos - 3 + dim;
+			}
+			pos = i * dim + j;
+			// truncate each pixel's color values to match the range [0,255]
+			dst[pos].red = (unsigned char)(min(max(sumR, 0), 255));
+			dst[pos].green = (unsigned char)(min(max(sumG, 0), 255));
+			dst[pos].blue = (unsigned char)(min(max(sumB, 0), 255));
+
+			// dst[i * dim + j] = current_pixel;
+		}
+	}
+	pixelsToChars(dst, image);
+	free(dst);
+	free(src);
+}
+
+void smoothFB(int dim, Image* image)
+{
+	int x = m * n * 3;
+	pixel *dst = malloc(x);
+	pixel *src = malloc(x);
+	charsToPixels(image, dst);
+	copyPixels(dst, src);
+
+	int i, j;
+	for (i = 1; i < dim - 1; i++)
+	{
+		for (j = 1; j < dim - 1; j++)
+		{
+			int sumR = 0;
+			int sumG = 0;
+			int sumB = 0;
+			int ii, jj;
+			// pixel_sum sum;
+			int min_loc;
+			int max_loc;
+			int min_intensity = 766; // arbitrary value that is higher than maximum possible intensity, which is 255*3=765
+			int max_intensity = -1;	 // arbitrary value that is lower than minimum possible intensity, which is 0
+			pixel loop_pixel;
+			int pos = (i - 1) * dim + j - 1;
+			for (ii = 0; ii < 3; ii++)
+			{
+				for (jj = 0; jj < 3; jj++)
+				{
+					loop_pixel = src[pos];
+					// apply kernel on pixel at [ii,jj]
+					sumR += ((int)loop_pixel.red);
+					sumG += ((int)loop_pixel.green);
+					sumB += ((int)loop_pixel.blue);
+
+					int sumColor = (int)loop_pixel.red + (int)loop_pixel.green + (int)loop_pixel.blue;
+					if (sumColor <= min_intensity)
+					{
+						min_intensity = sumColor;
+						min_loc = pos;
+					}
+					if (sumColor > max_intensity)
+					{
+						max_intensity = sumColor;
+						max_loc = pos;
+					}
+					pos++;
+				}
+				pos = pos - 3 + dim;
+			}
+			pos = pos - 2 * dim + 1;
+			// filter out min and max
+			loop_pixel = src[min_loc];
+			sumR += ((int)loop_pixel.red) * -1;
+			sumG += ((int)loop_pixel.green) * -1;
+			sumB += ((int)loop_pixel.blue) * -1;
+			loop_pixel = src[max_loc];
+			sumR += ((int)loop_pixel.red) * -1;
+			sumG += ((int)loop_pixel.green) * -1;
+			sumB += ((int)loop_pixel.blue) * -1;
+
+			// assign kernel's result to pixel at [i,j]
+			// divide by kernel's weight
+			sumR = sumR / 7;
+			sumG = sumG / 7;
+			sumB = sumB / 7;
+
+			// truncate each pixel's color values to match the range [0,255]
+			dst[pos].red = (unsigned char)(min(max(sumR, 0), 255));
+			dst[pos].green = (unsigned char)(min(max(sumG, 0), 255));
+			dst[pos].blue = (unsigned char)(min(max(sumB, 0), 255));
+
+			// dst[i * dim + j] = current_pixel;
+		}
+	}
+	pixelsToChars(dst, image);
+	free(dst);
+	free(src);
+}
+
+void smoothRB(int dim, Image* image)
+{
+	int x = m * n * 3;
+	pixel *dst = malloc(x);
+	pixel *src = malloc(x);
+	charsToPixels(image, dst);
+	copyPixels(dst, src);
+	int i, j;
+	for (i = 1; i < dim - 1; i++)
+	{
+		for (j = 1; j < dim - 1; j++)
+		{
+			int sumR = 0;
+			int sumG = 0;
+			int sumB = 0;
+			int ii, jj;
+			// pixel_sum sum;
+			pixel loop_pixel;
+			int pos = i * dim + j - 1;
+
+			loop_pixel = src[pos];
+
+			// apply kernel on pixel at [ii,jj]
+			sumR += ((int)loop_pixel.red);
+			sumG += ((int)loop_pixel.green);
+			sumB += ((int)loop_pixel.blue);
+			pos++;
+			loop_pixel = src[pos];
+
+			sumR += ((int)loop_pixel.red) * 2;
+			sumG += ((int)loop_pixel.green) * 2;
+			sumB += ((int)loop_pixel.blue) * 2;
+
+			pos++;
+			loop_pixel = src[pos];
+
+			sumR += ((int)loop_pixel.red);
+			sumG += ((int)loop_pixel.green);
+			sumB += ((int)loop_pixel.blue);
+
+			// divide by kernel's weight
+			sumR = sumR / 4;
+			sumG = sumG / 4;
+			sumB = sumB / 4;
+			pos = i * dim + j;
+			// truncate each pixel's color values to match the range [0,255]
+			dst[pos].red = (unsigned char)(min(max(sumR, 0), 255));
+			dst[pos].green = (unsigned char)(min(max(sumG, 0), 255));
+			dst[pos].blue = (unsigned char)(min(max(sumB, 0), 255));
+
+			// dst[i * dim + j] = current_pixel;
+		}
+	}
+	pixelsToChars(dst, image);
+	free(dst);
+	free(src);
+}
+
+void smoothRS(int dim, Image* image)
+{
+	int x = m * n * 3;
+	pixel *dst = malloc(x);
+	pixel *src = malloc(x);
+	charsToPixels(image, dst);
+	copyPixels(dst, src);
+	int i, j;
+	for (i = 1; i < dim - 1; i++)
+	{
+		for (j = 1; j < dim - 1; j++)
+		{
+			int sumR = 0;
+			int sumG = 0;
+			int sumB = 0;
+			int ii, jj;
+			// pixel_sum sum;
+			int sumColor;
+			pixel loop_pixel;
+			int pos = i * dim + j - 1;
+
+			loop_pixel = src[pos];
+
+			// apply kernel on pixel at [ii,jj]
+			sumR += ((int)loop_pixel.red) * (-1);
+			sumG += ((int)loop_pixel.green) * (-1);
+			sumB += ((int)loop_pixel.blue) * (-1);
+
+			pos++;
+			loop_pixel = src[pos];
+
+			// apply kernel on pixel at [ii,jj]
+			sumR += ((int)loop_pixel.red) * 3;
+			sumG += ((int)loop_pixel.green) * 3;
+			sumB += ((int)loop_pixel.blue) * 3;
+
+			pos++;
+			loop_pixel = src[pos];
+
+			// apply kernel on pixel at [ii,jj]
+			sumR += ((int)loop_pixel.red) * (-1);
+			sumG += ((int)loop_pixel.green) * (-1);
+			sumB += ((int)loop_pixel.blue) * (-1);
+			pos = i * dim + j;
+			// truncate each pixel's color values to match the range [0,255]
+			dst[pos].red = (unsigned char)(min(max(sumR, 0), 255));
+			dst[pos].green = (unsigned char)(min(max(sumG, 0), 255));
+			dst[pos].blue = (unsigned char)(min(max(sumB, 0), 255));
+
+			// dst[i * dim + j] = current_pixel;
+		}
+	}
+	pixelsToChars(dst, image);
+	free(dst);
+	free(src);
 }
